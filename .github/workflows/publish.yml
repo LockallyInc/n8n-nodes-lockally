@@ -1,0 +1,35 @@
+# n8n requires community nodes to be published by a GitHub action with an npm
+# provenance statement, so that what is on npm can be traced to the commit and
+# workflow that built it. Publishing from a laptop is no longer accepted.
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Provenance is signed with this token; without it npm publishes unsigned.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm run lint
+
+      - run: npm test
+
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
