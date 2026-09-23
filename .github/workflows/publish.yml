@@ -24,7 +24,12 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      - run: npm ci --ignore-scripts
+      # npm install, not npm ci: inside @n8n/node-cli's own dependency tree
+      # eslint pins ignore@5 while @langchain/community asks for ignore@7, and
+      # npm's dedupe leaves a lockfile that `npm ci` refuses. These are dev
+      # tools only; the published package has no runtime dependencies at all.
+      # --ignore-scripts skips a transitive native build that is not needed here.
+      - run: npm install --ignore-scripts --no-audit --no-fund
 
       - run: npm run lint
 
