@@ -35,6 +35,10 @@ jobs:
 
       - run: npm test
 
+      - run: npm run build
+
+      # --provenance signs what was published to this commit and workflow,
+      # which n8n requires of community nodes from May 2026.
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

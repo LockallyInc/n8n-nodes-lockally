@@ -33,7 +33,7 @@
     "test": "npm run build && node --test \"test/*.test.js\"",
     "scan": "npx @n8n/scan-community-package n8n-nodes-lockally",
     "release": "n8n-node release",
-    "prepublishOnly": "n8n-node prerelease"
+    "prepack": "npm run build"
   },
   "files": [
     "dist"
