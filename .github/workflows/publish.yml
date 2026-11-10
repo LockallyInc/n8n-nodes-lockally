@@ -1,6 +1,22 @@
 # n8n requires community nodes to be published by a GitHub action with an npm
 # provenance statement, so that what is on npm can be traced to the commit and
 # workflow that built it. Publishing from a laptop is no longer accepted.
+#
+# That provenance now comes from publishing itself. This workflow authenticates
+# by OIDC trusted publishing rather than a stored npm token: npm exchanges the
+# job's short-lived token for a publish credential, and attaches provenance to
+# what it publishes without being asked. So there is no NPM_TOKEN and no
+# `--provenance` flag, and n8n's requirement is still met.
+#
+# One-time setup (no repo secret at all):
+#   - On npmjs.com, n8n-nodes-lockally, Settings, Trusted publisher,
+#     GitHub Actions:
+#       Organization or user:  lockallyinc
+#       Repository:            n8n-nodes-lockally
+#       Workflow filename:     publish.yml
+#       Environment:           leave empty (this workflow declares none)
+#   The policy is registered by the account owner in the npm UI; no value from
+#   it is ever stored here.
 name: Publish to npm
 
 on:
@@ -10,7 +26,7 @@ on:
 
 permissions:
   contents: read
-  # Provenance is signed with this token; without it npm publishes unsigned.
+  # What npm verifies in place of a token, and what signs the provenance.
   id-token: write
 
 jobs:
@@ -23,6 +39,24 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >= 11.5.1 and Node 22 ships npm 10.x, so
+      # the publishing npm is installed rather than inherited. npm 11.21.2 is the
+      # newest line that still accepts Node 22 (npm 12 wants >= 22.22).
+      #
+      # The assertion is the point. An npm too old to exchange an OIDC token does
+      # not say so: it looks for a token it will not find and dies on ENEEDAUTH,
+      # which reads like a missing secret and sends you looking in the wrong place.
+      - name: Install an npm that can do trusted publishing
+        run: |
+          npm install -g npm@11.21.2
+          want=11.5.1
+          have=$(npm --version)
+          echo "npm $have"
+          if [ "$(printf '%s\n%s\n' "$want" "$have" | sort -V | head -1)" != "$want" ]; then
+            echo "::error::npm $have cannot do OIDC trusted publishing (need >= $want). Pin a newer npm in this step; this release has no token to fall back on."
+            exit 1
+          fi
 
       # npm install, not npm ci: inside @n8n/node-cli's own dependency tree
       # eslint pins ignore@5 while @langchain/community asks for ignore@7, and
@@ -37,8 +71,8 @@ jobs:
 
       - run: npm run build
 
-      # --provenance signs what was published to this commit and workflow,
-      # which n8n requires of community nodes from May 2026.
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # No NODE_AUTH_TOKEN. npm exchanges the job's OIDC token for a short-lived
+      # credential and signs provenance with it; with no matching trusted
+      # publisher on npmjs.com this fails (E404/E403) rather than publishing
+      # unsigned or skipping.
+      - run: npm publish --access public
