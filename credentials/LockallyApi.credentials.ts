@@ -23,7 +23,7 @@ export class LockallyApi implements ICredentialType {
 			default: '',
 			required: true,
 			description:
-				'From the Lockally console under API keys. It starts with lk_live_. Give it the permissions this workflow needs: send:write to send, webhooks:read and webhooks:write for triggers, inboxes:read to read mailboxes, suppressions:write for the suppression list. To trigger on mail arriving in a mailbox, grant the key that mailbox on the key’s own page.',
+				'Create it in the Lockally console on the Tokens page. It starts with lk_live_. Give it the permissions this workflow needs: send:write to send, webhooks:read and webhooks:write for triggers, inboxes:read to read mailboxes, suppressions:write for the suppression list. To trigger on mail arriving in a mailbox, grant the key that mailbox on the API Keys page, under the key’s Mailboxes. A key sees only the mailboxes it is granted.',
 		},
 		{
 			displayName: 'API URL',

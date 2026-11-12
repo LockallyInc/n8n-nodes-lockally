@@ -15,7 +15,7 @@ your n8n folder.
 
 ## Credentials
 
-Create an API key in the Lockally console under **API keys**. It begins with
+Create an API key in the Lockally console on the **Tokens** page. It begins with
 `lk_live_`. Give it only what the workflow needs:
 
 | You want to | Permissions |
@@ -27,9 +27,9 @@ Create an API key in the Lockally console under **API keys**. It begins with
 | Manage the suppression list | `suppressions:write`, and `suppressions:read` to look one up |
 | Look up a sent message | `send:read` |
 
-**Mailboxes are granted separately.** A key can be limited to particular
-mailboxes on its own page in the console. The Mailbox dropdown then offers
-exactly those, and a trigger that asks for another one is refused rather than
+**Mailboxes are granted separately.** A key sees only the mailboxes it is
+granted, on the **API Keys** page of the console under the key's **Mailboxes**.
+The Mailbox dropdown offers exactly those, and a trigger that asks for another one is refused rather than
 quietly receiving nothing. A key with no mailbox grants cannot use the New Email
 Received trigger at all; grant it the mailbox it should watch.
 
