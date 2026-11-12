@@ -75,7 +75,7 @@ export function apiErrorMessage(error: JsonObject, endpoint: string): string {
 		}
 		const scope = scopeFor(endpoint);
 		return scope
-			? `${said} This key needs the ${scope} permission: edit it in the Lockally console under API keys.`
+			? `${said} This key needs the ${scope} permission. Create a new key with it on the Tokens page of the Lockally console, then put the new key in this node’s credential. A new key has no mailboxes until you grant them on the API Keys page.`
 			: said;
 	}
 	if (String(status) === '429') {
