@@ -48,6 +48,14 @@ workflow off deletes it. Nothing is left behind on either side. If the
 subscription is removed in Lockally, the node notices and creates a new one
 rather than listening to nothing.
 
+Every delivery is checked against the webhook's signing secret (the
+`X-Lockally-Signature` header), and a request that is unsigned, wrongly signed
+or more than five minutes old is refused with a 401 without starting the
+workflow, so knowing the n8n webhook URL is not enough to start it. A trigger
+whose webhook was created without a stored secret still runs but logs a
+warning; turn the workflow off and on again to create a webhook that is
+checked.
+
 ### Lockally
 
 | Resource | Operations |

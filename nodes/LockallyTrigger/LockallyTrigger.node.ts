@@ -10,7 +10,13 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
-import { flattenEvent, lockallyApiRequest, MAILBOX_EVENTS } from '../Lockally/GenericFunctions';
+import {
+	flattenEvent,
+	lockallyApiRequest,
+	MAILBOX_EVENTS,
+	SIGNATURE_HEADER,
+	verifyWebhookSignature,
+} from '../Lockally/GenericFunctions';
 
 export class LockallyTrigger implements INodeType {
 	description: INodeTypeDescription = {
@@ -180,6 +186,40 @@ export class LockallyTrigger implements INodeType {
 	};
 
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
+		const secret = this.getWorkflowStaticData('node').signingSecret as string | undefined;
+		if (secret) {
+			// Only Lockally knows this secret, so a good signature is what proves
+			// the request came from Lockally and not from somebody who learned
+			// this URL.
+			const req = this.getRequestObject();
+			if (!req.rawBody && typeof req.readRawBody === 'function') {
+				await req.readRawBody();
+			}
+			const header = this.getHeaderData()[SIGNATURE_HEADER];
+			const problem = req.rawBody
+				? verifyWebhookSignature(
+						secret,
+						req.rawBody,
+						typeof header === 'string' ? header : undefined,
+						Math.floor(Date.now() / 1000),
+					)
+				: 'request body unavailable';
+			if (problem) {
+				this.logger.warn(`Lockally Trigger: refused a webhook request (${problem})`);
+				const res = this.getResponseObject();
+				res.status(401).json({ error: 'invalid signature' });
+				return { noWebhookResponse: true };
+			}
+		} else {
+			// A webhook made before this version kept no secret, so there is
+			// nothing to check against. Refusing would silently stop workflows
+			// that work today; turning the workflow off and on again creates a
+			// new webhook whose deliveries are checked.
+			this.logger.warn(
+				'Lockally Trigger: this webhook has no stored signing secret, so its requests are not verified. Deactivate and reactivate the workflow to fix this.',
+			);
+		}
+
 		const event = flattenEvent(this.getBodyData() as IDataObject);
 		if (!event) {
 			// Something that is not a Lockally event reached this URL. Answering

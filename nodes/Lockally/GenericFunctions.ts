@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 import type {
 	IDataObject,
@@ -115,6 +115,60 @@ export function flattenEvent(envelope: IDataObject | undefined): IDataObject | n
 			: undefined,
 		...data,
 	};
+}
+
+/** The header Lockally signs every webhook delivery with. */
+export const SIGNATURE_HEADER = 'x-lockally-signature';
+
+/** How old a signed timestamp may be before the delivery is refused as a replay. */
+export const SIGNATURE_MAX_AGE_SECONDS = 5 * 60;
+
+/**
+ * Check a Lockally webhook signature. Returns null when it is good, or the
+ * reason it is not.
+ *
+ * This mirrors the server (internal/webhook/sign.go in Lockally): the header is
+ * `t=<unix seconds>,v1=<hex>`, and v1 is HMAC-SHA256 over `t + "." + raw body`,
+ * keyed with the raw bytes the hex `signing_secret` decodes to (not the hex text
+ * itself). It must be the raw body: JSON parsed and serialised again is not
+ * byte for byte what Lockally signed.
+ */
+export function verifyWebhookSignature(
+	secretHex: string,
+	rawBody: Buffer,
+	header: string | undefined,
+	nowSeconds: number,
+): string | null {
+	if (!header) return 'missing signature header';
+
+	let ts = '';
+	let sig = '';
+	for (const part of header.split(',')) {
+		const trimmed = part.trim();
+		const eq = trimmed.indexOf('=');
+		if (eq < 0) return 'malformed signature header';
+		const key = trimmed.slice(0, eq);
+		const value = trimmed.slice(eq + 1);
+		if (key === 't') ts = value;
+		else if (key === 'v1') sig = value;
+	}
+	if (!ts || !sig) return 'malformed signature header';
+	if (!/^\d+$/.test(ts)) return 'malformed signature timestamp';
+	if (nowSeconds - Number(ts) > SIGNATURE_MAX_AGE_SECONDS) return 'signature timestamp too old';
+	if (!isHex(sig)) return 'malformed signature';
+	if (!isHex(secretHex)) return 'stored signing secret is not valid';
+
+	const want = createHmac('sha256', Buffer.from(secretHex, 'hex'))
+		.update(`${ts}.`)
+		.update(rawBody)
+		.digest();
+	const got = Buffer.from(sig, 'hex');
+	if (got.length !== want.length || !timingSafeEqual(got, want)) return 'signature mismatch';
+	return null;
+}
+
+function isHex(value: string): boolean {
+	return value.length > 0 && value.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(value);
 }
 
 /** Addresses, however they were supplied: a list, or one string of them. */

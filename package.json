@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-lockally",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lockally nodes for n8n: send email from your own domain, and start workflows from the mail that arrives.",
   "keywords": [
     "n8n-community-node-package",
